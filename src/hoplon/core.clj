@@ -13,7 +13,7 @@
             [hoplon.spec]))
 
 ;; Hoplon Interpolation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- ^{:from 'org.clojure/core.incubator} silent-read
+#_(defn- ^{:from 'org.clojure/core.incubator} silent-read
   "Attempts to clojure.core/read a single form from the provided String, returning
   a vector containing the read form and a String containing the unread remainder
   of the provided String. Returns nil if no valid form can be read from the
@@ -24,7 +24,7 @@
       [(read r) (slurp r)])
     (catch Exception e))) ; this indicates an invalid form -- the head of s is just string data
 
-(defn- ^{:from 'org.clojure/core.incubator} terpol8*
+#_(defn- ^{:from 'org.clojure/core.incubator} terpol8*
   "Yields a seq of Strings and read forms."
   ([s atom?]
    (lazy-seq
@@ -42,7 +42,7 @@
                  (terpol8* (subs s start) (= \{ (.charAt s (inc start))))))
      [s])))
 
-(defn terpol8 [s]
+#_(defn terpol8 [s]
   (let [parts (remove #(= "" %) (terpol8* s))]
     (if (every? string? parts) s `(str ~@parts))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -54,9 +54,33 @@
   (let [[prepost & body] (if (map? (first body)) body (conj body nil))]
     `(fn [& args#] ~(or prepost {}) (let [~bind (parse-args args#)] ~@body))))
 
-(spec/fdef elem :args :hoplon.spec/elem :ret any?)
+;;(spec/fdef elem :args :hoplon.spec/elem :ret any?)
 
 (defmacro defelem
+  "Defines an element function.
+
+  An element function creates a DOM Element (parent) given two arguments:
+
+    * `attrs` - a number of key-value pairs for attributes and their values
+    * `kids` - a sequence of DOM Elements to be appended/used inside
+
+  The returned DOM Element is itself a function which can accept more
+  attributes and child elements."
+  [name & fdecl]
+  (let [m             (if (string? (first fdecl)) {:doc (first fdecl)} {})
+        fdecl         (if (string? (first fdecl)) (next fdecl) fdecl)
+        m             (if (map? (first fdecl)) (conj m (first fdecl)) m)
+        fdecl         (if (map? (first fdecl)) (next fdecl) fdecl)
+        fdecl         (if (vector? (first fdecl)) (list fdecl) fdecl)
+        m             (if (map? (last fdecl)) (conj m (last fdecl)) m)
+        fdecl         (if (map? (last fdecl)) (butlast fdecl) fdecl)
+        [fdecl]       fdecl ;;only single arity for elems
+        [bind & body] fdecl
+        m             (conj (if (meta name) (meta name) {}) m)]
+    (list 'def (with-meta name m)
+      `(elem ~bind ~@body))))
+
+#_(defmacro defelem
   "Defines an element function.
 
   An element function creates a DOM Element (parent) given two arguments:
@@ -71,7 +95,7 @@
         [docstr & [bind & body]] (if (string? (first fdecl)) fdecl (conj fdecl nil))]
     `(def ^{:doc ~docstr} ~name (elem ~bind ~@body))))
 
-(spec/fdef defelem :args :hoplon.spec/defelem :ret any?)
+;;(spec/fdef defelem :args :hoplon.spec/defelem :ret any?)
 
 (defmacro defattr
   "Defines an attribute function.
@@ -86,7 +110,7 @@
   [name & forms]
   `(defmethod hoplon.core/do! ~name ~@forms))
 
-(spec/fdef defattr :args :hoplon.spec/defattr :ret any?)
+;;(spec/fdef defattr :args :hoplon.spec/defattr :ret any?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Caching DOM Manipulation Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -111,7 +135,7 @@
     `(loop-tpl* ~items
         (fn [item#] (j/cell-let [~bindings item#] ~body)))))
 
-(spec/fdef loop-tpl :args :hoplon.spec/loop-tpl :ret any?)
+;;(spec/fdef loop-tpl :args :hoplon.spec/loop-tpl :ret any?)
 
 (defmacro for-tpl
   "Template. Accepts a cell-binding and returns a cell containing a sequence of
@@ -122,7 +146,7 @@
   [[bindings items] body]
   `(loop-tpl* ~items (fn [item#] (j/cell-let [~bindings item#] ~body))))
 
-(spec/fdef for-tpl :args :hoplon.spec/for-tpl :ret any?)
+;;(spec/fdef for-tpl :args :hoplon.spec/for-tpl :ret any?)
 
 (defmacro if-tpl
   "Template. Accepts a `predicate` cell and returns a cell containing either
@@ -137,7 +161,7 @@
          tpl# (fn [p#] (safe-deref (if p# con# alt#)))]
      ((j/formula tpl#) ~predicate)))
 
-(spec/fdef if-tpl :args :hoplon.spec/if-tpl :ret any?)
+;;(spec/fdef if-tpl :args :hoplon.spec/if-tpl :ret any?)
 
 (defmacro when-tpl
   "Template. Accepts a `predicate` cell and returns a cell containing either
@@ -149,7 +173,7 @@
   [predicate & body]
   `(if-tpl ~predicate (do ~@body)))
 
-(spec/fdef when-tpl :args :hoplon.spec/when-tpl :ret any?)
+;;(spec/fdef when-tpl :args :hoplon.spec/when-tpl :ret any?)
 
 (defmacro cond-tpl
   "Template. Accepts a number of `clauses` cell-template pairs and returns a
@@ -169,7 +193,7 @@
            tpl# (fn [~@syms2] (safe-deref (cond ~@(interleave syms2 syms1))))]
        ((j/formula tpl#) ~@conds))))
 
-(spec/fdef cond-tpl :args :hoplon.spec/cond-tpl :ret any?)
+;;(spec/fdef cond-tpl :args :hoplon.spec/cond-tpl :ret any?)
 
 (defmacro case-tpl
   "Template. Accepts an `expr` cell and a number of `clauses` and returns a
@@ -189,7 +213,7 @@
            tpl# (fn [expr#] (safe-deref (case expr# ~@(interleave cases syms) ~(last syms))))]
        ((j/formula tpl#) ~expr))))
 
-(spec/fdef case-tpl :args :hoplon.spec/case-tpl :ret any?)
+;;(spec/fdef case-tpl :args :hoplon.spec/case-tpl :ret any?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; DOM Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -220,7 +244,7 @@
   [& body]
   `(add-initfn! (fn [] ~@body)))
 
-(defmacro text
+#_(defmacro text
   "Creates a DOM Text node and binds its text content to a formula created via
   string interpolation, so the Text node updates with the formula."
   [form]
